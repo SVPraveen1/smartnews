@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { TrendingUp, Mail, Lock, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/components/auth-provider"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { login } = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,16 +28,12 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Get stored users
-      const users = JSON.parse(localStorage.getItem("users") || "[]")
-      const user = users.find((u: any) => u.email === email && u.password === password)
-
-      if (user) {
-        // Store current user session
-        localStorage.setItem("currentUser", JSON.stringify(user))
+      const result = await login(email, password)
+      
+      if (result.success) {
         router.push("/dashboard")
       } else {
-        setError("Invalid email or password")
+        setError(result.error || "Login failed")
       }
     } catch (err) {
       setError("Login failed. Please try again.")

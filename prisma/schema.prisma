@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  notifications Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  portfolios    Portfolio[]
+  
+  @@map("users")
+}
+
+model Portfolio {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  name      String
+  quantity  Int
+  avgPrice  Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("portfolios")
+}
+
+model NewsCache {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  link        String
+  pubDate     DateTime
+  sourceId    String
+  category    String[]
+  createdAt   DateTime @default(now())
+  
+  @@map("news_cache")
+}

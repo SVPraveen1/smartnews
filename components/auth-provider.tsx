@@ -12,7 +12,8 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (user: User) => void
+  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>
+  register: (email: string, password: string, name: string) => Promise<{ success: boolean; user?: User; error?: string }>
   logout: () => void
   isLoading: boolean
 }
@@ -41,14 +42,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Check for existing user session
     const currentUser = localStorage.getItem('currentUser')
     if (currentUser) {
-      setUser(JSON.parse(currentUser))
+      try {
+        setUser(JSON.parse(currentUser))
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+        localStorage.removeItem('currentUser')
+      }
     }
     setIsLoading(false)
   }, [])
 
-  const login = (userData: User) => {
-    setUser(userData)
-    localStorage.setItem('currentUser', JSON.stringify(userData))
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setUser(data.user)
+        localStorage.setItem('currentUser', JSON.stringify(data.user))
+        return { success: true, user: data.user }
+      } else {
+        return { success: false, error: data.error }
+      }
+    } catch (error) {
+      return { success: false, error: 'Login failed' }
+    }
+  }
+
+  const register = async (email: string, password: string, name: string) => {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setUser(data.user)
+        localStorage.setItem('currentUser', JSON.stringify(data.user))
+        return { success: true, user: data.user }
+      } else {
+        return { success: false, error: data.error }
+      }
+    } catch (error) {
+      return { success: false, error: 'Registration failed' }
+    }
   }
 
   const logout = () => {
@@ -70,6 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value = {
     user,
     login,
+    register,
     logout,
     isLoading
   }

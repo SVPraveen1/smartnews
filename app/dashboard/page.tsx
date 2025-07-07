@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { DebugPanel } from "@/components/debug-panel"
+import { useAuth } from "@/components/auth-provider"
 
 interface NewsItem {
   title: string
@@ -59,37 +60,49 @@ export default function DashboardPage() {
   const [portfolioNews, setPortfolioNews] = useState<NewsItem[]>([])
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>([])
   const [aiInsights, setAiInsights] = useState<AIInsight[]>([])
-  const [user, setUser] = useState<DashboardUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const router = useRouter()
+  const { user } = useAuth()
 
   useEffect(() => {
-    // Check authentication
-    const currentUser = localStorage.getItem("currentUser")
-    if (!currentUser) {
+    if (!user) {
       router.push("/auth/login")
       return
     }
 
-    const userData = JSON.parse(currentUser)
-    setUser(userData)
-    setNotificationsEnabled(userData.notifications || false)
+    setNotificationsEnabled(user.notifications || false)
 
-    // Load portfolio from localStorage
-    const savedPortfolio = localStorage.getItem(`portfolio_${userData.id}`)
-    if (savedPortfolio) {
-      setPortfolio(JSON.parse(savedPortfolio))
-    }
-
+    // Load portfolio from database
+    fetchPortfolio()
+    
     // Request notification permission
-    if ("Notification" in window && userData.notifications) {
+    if ("Notification" in window && user.notifications) {
       Notification.requestPermission()
     }
 
     // Fetch news and insights
     fetchNews()
-  }, [router])
+  }, [user, router])
+
+  const fetchPortfolio = async () => {
+    if (!user) return
+    
+    try {
+      const response = await fetch(`/api/portfolio?userId=${user.id}`)
+      const data = await response.json()
+      
+      if (response.ok) {
+        setPortfolio(data.portfolio || [])
+      } else {
+        console.error('Failed to fetch portfolio:', data.error)
+        setPortfolio([])
+      }
+    } catch (error) {
+      console.error('Error fetching portfolio:', error)
+      setPortfolio([])
+    }
+  }
 
   useEffect(() => {
     if (portfolio.length > 0 && user) {
@@ -176,22 +189,8 @@ export default function DashboardPage() {
   const toggleNotifications = async (enabled: boolean) => {
     setNotificationsEnabled(enabled)
 
-    if (user) {
-      const updatedUser = { ...user, notifications: enabled }
-      setUser(updatedUser)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-
-      // Update in users array
-      const users = JSON.parse(localStorage.getItem("users") || "[]")
-      const userIndex = users.findIndex((u: any) => u.id === user.id)
-      if (userIndex >= 0) {
-        users[userIndex] = updatedUser
-        localStorage.setItem("users", JSON.stringify(users))
-      }
-
-      if (enabled && "Notification" in window) {
-        await Notification.requestPermission()
-      }
+    if (enabled && "Notification" in window) {
+      await Notification.requestPermission()
     }
   }
 
